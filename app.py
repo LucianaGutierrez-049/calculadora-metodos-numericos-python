@@ -315,6 +315,9 @@ def parsear_numero(texto):
     return float(valor) if valor.is_real else complex(valor)
 
 
+DECIMALES_TABLA = 5
+
+
 def dataframe_limpio(filas):
     if not filas:
         return pd.DataFrame()
@@ -334,7 +337,7 @@ def dataframe_limpio(filas):
         if forzar_texto and valor is not None:
             return formato_complejo(valor)
         if isinstance(valor, float):
-            return round(valor, 8)
+            return f"{valor:.{DECIMALES_TABLA}f}"
         return valor
 
     return pd.DataFrame([
@@ -350,11 +353,11 @@ def formato_lista_numeros(valores):
     return "[" + ", ".join(formato_complejo(v) for v in valores) + "]"
 
 
-def formatear_decimal(valor, decimales=8):
+def formatear_decimal(valor, decimales=DECIMALES_TABLA):
     if valor is None:
         return ""
     try:
-        return f"{float(valor):.{decimales}f}".rstrip("0").rstrip(".")
+        return f"{float(valor):.{decimales}f}"
     except (TypeError, ValueError):
         return str(valor)
 
@@ -493,9 +496,9 @@ def grafica_raices(raices, estabilidad=False):
         hovertemplate=(
             "<b>%{customdata[0]}</b><br>"
             "valor: %{customdata[1]}<br>"
-            "Re: %{customdata[2]:.8f}<br>"
-            "Im: %{customdata[3]:.8f}<br>"
-            "|z|: %{customdata[4]:.8f}<extra></extra>"
+            "Re: %{customdata[2]:.5f}<br>"
+            "Im: %{customdata[3]:.5f}<br>"
+            "|z|: %{customdata[4]:.5f}<extra></extra>"
         ),
         marker=dict(size=12, color="#ff5f9f"),
     ))
@@ -631,7 +634,7 @@ if metodo != "Muller":
                 raiz = resumen["raiz"]
                 encabezado_seccion("Resumen del cálculo", "Resultado principal y criterio de parada alcanzado.")
                 cols = st.columns(4)
-                tarjeta(cols[0], "Raíz aproximada", f"{raiz:.10g}")
+                tarjeta(cols[0], "Raíz aproximada", formatear_decimal(raiz))
                 tarjeta(cols[1], "Iteraciones", resumen["iteraciones"])
                 tarjeta(cols[2], "Error final (%)", f"{0 if resumen['error_final'] is None else resumen['error_final']:.8g}")
                 tarjeta(cols[3], "Estado", "Convergió" if resumen["convergio"] else "Máx. iter.", "ok" if resumen["convergio"] else "warn")
@@ -642,10 +645,10 @@ if metodo != "Muller":
                     derivada_g = sp.diff(expr_g, x_sym)
                     derivada_g_num = sp.lambdify(x_sym, derivada_g, modules=["numpy"])
                     valor = abs(evaluar_seguro(derivada_g_num, raiz))
-                    st.write(f"Condición local: |g'(raíz)| ≈ **{valor:.8f}**")
+                    st.write(f"Condición local: |g'(raíz)| ≈ **{formatear_decimal(valor)}**")
 
                 encabezado_seccion("Tabla de iteraciones", "Detalle numérico listo para revisar o exportar.")
-                df = pd.DataFrame(filas)
+                df = dataframe_limpio(filas)
                 st.dataframe(df, width="stretch", hide_index=True)
                 boton_csv(df, f"tabla_{metodo.lower().replace(' ', '_')}.csv")
 
@@ -794,11 +797,17 @@ else:
                     with c1:
                         st.markdown("#### DESCARTES")
                         st.write(f"**P({simbolo})**")
-                        st.dataframe(pd.DataFrame({"Coeficientes": desc["coeficientes_px"], "Signos": desc["signos_px"]}), width="stretch", hide_index=True)
+                        st.dataframe(dataframe_limpio([
+                            {"Coeficientes": c, "Signos": s}
+                            for c, s in zip(desc["coeficientes_px"], desc["signos_px"])
+                        ]), width="stretch", hide_index=True)
                         st.write(f"V+ = **{desc['cambios_positivos']}**")
                         st.write(f"Raíces positivas posibles: **{formatear_posibilidades(desc['positivas_posibles'])}**")
                         st.write(f"**P(-{simbolo})**")
-                        st.dataframe(pd.DataFrame({"Coeficientes": desc["coeficientes_p_menos_x"], "Signos": desc["signos_p_menos_x"]}), width="stretch", hide_index=True)
+                        st.dataframe(dataframe_limpio([
+                            {"Coeficientes": c, "Signos": s}
+                            for c, s in zip(desc["coeficientes_p_menos_x"], desc["signos_p_menos_x"])
+                        ]), width="stretch", hide_index=True)
                         st.write(f"V- = **{desc['cambios_negativos']}**")
                         st.write(f"Raíces negativas posibles: **{formatear_posibilidades(desc['negativas_posibles'])}**")
                     with c2:
@@ -808,11 +817,11 @@ else:
                         st.write(f"k: **{lag['positiva']['k']}**")
                         st.write("Fórmula utilizada:")
                         st.code(lag["positiva"]["formula"])
-                        st.write(f"Cota positiva: **{lag['cota_positiva']:.10g}**")
-                        st.write(f"Cota negativa: **{lag['cota_negativa']:.10g}**")
-                        st.write(f"Cota global: **{lag['cota_global']:.10g}**")
+                        st.write(f"Cota positiva: **{formatear_decimal(lag['cota_positiva'])}**")
+                        st.write(f"Cota negativa: **{formatear_decimal(lag['cota_negativa'])}**")
+                        st.write(f"Cota global: **{formatear_decimal(lag['cota_global'])}**")
                         st.code(f"Para P(-{simbolo}): " + lag["negativa"]["formula"])
-                        st.dataframe(pd.DataFrame(lag["positiva"]["negativos"]), width="stretch", hide_index=True)
+                        st.dataframe(dataframe_limpio(lag["positiva"]["negativos"]), width="stretch", hide_index=True)
                 with tabs[2]:
                     encabezado_seccion("Horner", "Representación anidada y evaluación eficiente del polinomio.")
                     st.markdown("**Polinomio original**")
@@ -847,12 +856,12 @@ else:
                         resumen_def.append({
                             "Grado antes": proceso["grado"],
                             "Raíz": formato_complejo(proceso["raiz"]),
-                            "Residuo Müller": f"{proceso['residuo_muller']:.6e}",
+                            "Residuo Müller": formatear_decimal(proceso["residuo_muller"]),
                             "Residuo deflación": formato_complejo(proceso["residuo_deflacion"]),
                             "Coeficientes resultantes": formato_lista_numeros(proceso["coeficientes_resultantes"]),
                         })
                         coef_antes = proceso["coeficientes_resultantes"]
-                    st.dataframe(pd.DataFrame(resumen_def), width="stretch", hide_index=True)
+                    st.dataframe(dataframe_limpio(resumen_def), width="stretch", hide_index=True)
                     coef_antes = list(coeficientes)
                     for i, proceso in enumerate(procesos, start=1):
                         coef_despues = proceso["coeficientes_resultantes"]

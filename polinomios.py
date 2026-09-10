@@ -14,13 +14,13 @@ def limpiar_numero(valor, tol=1e-10):
     return complex(real, imag)
 
 
-def formato_complejo(valor, decimales=8):
+def formato_complejo(valor, decimales=5):
     z = complex(valor)
     z = complex(limpiar_numero(z))
     if abs(z.imag) < 10 ** (-(decimales - 2)):
-        return f"{z.real:.{decimales}g}"
+        return f"{z.real:.{decimales}f}"
     signo = "+" if z.imag >= 0 else "-"
-    return f"{z.real:.{decimales}g} {signo} {abs(z.imag):.{decimales}g}i"
+    return f"{z.real:.{decimales}f} {signo} {abs(z.imag):.{decimales}f}i"
 
 
 def validar_coeficientes(coeficientes, grado_minimo=1):
